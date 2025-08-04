@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Chat Webview</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+  <div class="flex flex-col h-screen justify-between">
+    <div id="chat-container" class="flex-1 overflow-y-auto p-4">
+      <div id="placeholder" class="text-gray-500 text-center mt-10">Start asking your queries to the AI assistant!</div>
+      <!-- Chat messages will be rendered here by index.js -->
+    </div>
+    <form id="chat-form" class="flex p-4 bg-white border-t">
+      <input id="chat-input" type="text" placeholder="Type your message..." class="flex-1 border rounded px-3 py-2 mr-2 focus:outline-none" autocomplete="off" />
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Send</button>
+    </form>
+  </div>
+  <script src="./index.js"></script>
+</body>
+</html>
