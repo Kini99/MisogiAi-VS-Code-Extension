@@ -1,20 +1,26 @@
-# VS Code Extension
+# ai-chat README
 
-This is a Visual Studio Code extension that brings AI-powered chat and code assistance directly into your editor. It helps developers get instant answers, code suggestions, and explanations without leaving VS Code.
+This is the README for your extension "ai-chat". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 
-- AI-powered chat for coding questions and explanations
-- Code completion and suggestions
-- Context-aware help for your current file
-- Easy integration with your workflow
+Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+
+For example if there is an image subfolder under your extension project workspace:
+
+\!\[feature X\]\(images/feature-x.png\)
+
+> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
 
 ## Requirements
 
-- Visual Studio Code v1.70 or later
-- Internet connection for AI features
+If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
 ## Extension Settings
+
+Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+
+For example:
 
 This extension contributes the following settings:
 
@@ -23,22 +29,43 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-- Some AI responses may be delayed depending on network speed
-- Limited support for very large files
+Calling out known issues can help limit users opening duplicate issues against your extension.
 
-## Setup & Installation
+## Release Notes
 
-1. Download or clone this repository:
-   ```sh
-   git clone https://github.com/Kini99/MisogiAi-VS-Code-Extension.git
-   ```
-2. Open the folder in Visual Studio Code.
-3. Run `npm install` to install dependencies.
-4. Press `F5` to launch the extension in a new Extension Development Host window.
+Users appreciate release notes as you update your extension.
 
-## Usage
+### 1.0.0
 
-- Open the command palette (`Ctrl+Shift+P`) and search for "ai-chat.openChat" to begin interacting with the AI.
-- Use the chat panel to ask coding questions, get code suggestions, or request explanations.
+Initial release of ...
 
+### 1.0.1
 
+Fixed issue #.
+
+### 1.1.0
+
+Added features X, Y, and Z.
+
+---
+
+## Following extension guidelines
+
+Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+
+* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+
+## Working with Markdown
+
+You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+
+* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
+* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
+* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+
+## For more information
+
+* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
+* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+
+**Enjoy!**

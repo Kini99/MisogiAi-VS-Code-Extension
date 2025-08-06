@@ -1,25 +1,19 @@
 {
   "compilerOptions": {
-	"module": "Node16",
-	"target": "ES2020",
-	"outDir": "dist",
-	"lib": [
-	  "ES2020",
-	  "DOM",
-	  "DOM.Iterable",
-	  "WebWorker"
-	],
-	"sourceMap": true,
-	"rootDir": "src",
-	"strict": true,
-	"jsx": "react-jsx",
-	"esModuleInterop": true,
-	"skipLibCheck": true,
-	"forceConsistentCasingInFileNames": true,
-	"types": ["node", "react", "react-dom", "mocha"],
-	/* Additional Checks */
-	// "noImplicitReturns": true,
-	// "noFallthroughCasesInSwitch": true,
-	// "noUnusedParameters": true
-  }
+    "module": "commonjs",
+    "target": "ES2020",
+    "outDir": "dist",
+    "lib": [
+      "ES2020"
+    ],
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true
+  },
+  "exclude": [
+    "node_modules",
+    ".vscode-test"
+  ]
 }

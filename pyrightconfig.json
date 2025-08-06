@@ -1,6 +1,0 @@
-{
-  "include": ["src/langgraph/**/*.py"],
-  "exclude": ["**/node_modules", "**/__pycache__"],
-  "reportMissingImports": true,
-  "reportMissingTypeStubs": false
-}

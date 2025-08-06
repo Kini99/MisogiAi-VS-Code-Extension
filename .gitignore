@@ -1,6 +1,16 @@
-out
-dist
-node_modules
-.vscode-test-web/
-*.vsix
 .env
+
+# Dependencies
+node_modules
+dist
+out
+
+# Python
+.venv
+backend/venv
+backend/__pycache__/
+*.pyc
+
+# VS Code
+.vscode-test/
+*.vsix

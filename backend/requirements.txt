@@ -1,0 +1,9 @@
+langchain
+langchain-core
+langchain-community
+langchain-openai
+langchain-google-genai
+langgraph
+openai # or anthropic
+pydantic # for AgentState
+python-dotenv # for local development, not for production secrets
