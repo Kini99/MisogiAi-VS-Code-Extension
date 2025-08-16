@@ -1,9 +1,7 @@
 langchain
-langchain-core
-langchain-community
-langchain-openai
-langchain-google-genai
-langgraph
-openai # or anthropic
-pydantic # for AgentState
-python-dotenv # for local development, not for production secrets
+langchain-core==0.3.74
+langchain-community==0.3.0
+langchain-openai==0.3.30
+langchain-google-genai==2.0.0
+langgraph==0.6.0
+python-dotenv
