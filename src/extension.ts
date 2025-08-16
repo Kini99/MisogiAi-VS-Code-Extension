@@ -77,10 +77,24 @@ export function activate(context: vscode.ExtensionContext) {
       console.log(`[SPAWN_ATTEMPT] Executable: ${pythonPath}`);
       console.log(`[SPAWN_ATTEMPT] Script: ${scriptPath}`);
 
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+      if (!workspaceRoot) {
+        vscode.window.showErrorMessage("No workspace folder is open. Please open a folder in VS Code first.");
+        currentPanel?.dispose();
+        return;
+      }
+
+      console.log(`[WORKSPACE] Using workspace root: ${workspaceRoot}`);
+
       // Spawn the Python process.
       // CRITICAL: shell is false (the default), cwd is set.
       pythonProcess = spawn(pythonPath, ["-u", scriptPath], {
         cwd: context.extensionPath, // Set the working directory
+        env: {
+          ...process.env,
+          VSCODE_WORKSPACE_ROOT: workspaceRoot  // Pass workspace to Python
+        }
       });
 
       // --- EVENT LISTENERS TO DIAGNOSE ANY ISSUE ---
@@ -103,17 +117,36 @@ export function activate(context: vscode.ExtensionContext) {
         console.log(`[FROM_PYTHON_STDOUT] Raw data: ${responseData}`);
         try {
           const response = JSON.parse(responseData);
-          const aiMessage = response.messages.slice(-1)[0];
-          if (aiMessage && aiMessage.content) {
-            conversationHistory.push({
-              role: "assistant",
-              content: aiMessage.content,
-            });
-            currentPanel?.webview.postMessage({
-              command: "addMessage",
-              role: "assistant",
-              text: aiMessage.content,
-            });
+          if (response.command) {
+            // Handle commands from the Python backend (e.g., tool calls)
+            handlePythonCommand(response, currentPanel, pythonProcess);
+          } else if (response.messages) {
+            // Handle regular AI messages
+            const aiMessage = response.messages.slice(-1)[0];
+            if (aiMessage && aiMessage.content) {
+              conversationHistory.push({
+                role: "assistant",
+                content: aiMessage.content,
+              });
+              currentPanel?.webview.postMessage({
+                command: "addMessage",
+                role: "assistant",
+                text: aiMessage.content,
+              });
+            } else if (aiMessage && aiMessage.tool_calls) {
+              // Handle tool calls from the AI model
+              // The Python agent will send these back after processing the tool_node
+              // We don't need to do anything here as the tool_node in Python handles it.
+              console.log("[FROM_PYTHON_STDOUT] AI wants to call a tool:", aiMessage.tool_calls);
+            } else if (aiMessage && aiMessage.tool_output) {
+              // Handle tool output from the AI model (after tool execution)
+              console.log("[FROM_PYTHON_STDOUT] AI tool output:", aiMessage.tool_output);
+              currentPanel?.webview.postMessage({
+                command: "addMessage",
+                role: "assistant",
+                text: `Tool output: ${JSON.stringify(aiMessage.tool_output)}`,
+              });
+            }
           }
         } catch (e) {
           console.error(
@@ -183,7 +216,59 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(startCommand, setApiKeyCommand);
 }
 
-// This function can be simplified as it's only used once.
+async function handlePythonCommand(
+  command: any,
+  panel: vscode.WebviewPanel | undefined,
+  pythonProc: ChildProcessWithoutNullStreams | undefined
+) {
+  if (!panel || !pythonProc) {
+    console.error("Panel or Python process not available.");
+    return;
+  }
+
+  const { command: cmd, path, content, tool_call_id } = command;
+  let result: any;
+  let error: string | undefined;
+
+  try {
+    if (cmd === "readFile") {
+      const uri = vscode.Uri.file(path);
+      const fileContent = await vscode.workspace.fs.readFile(uri);
+      result = Buffer.from(fileContent).toString('utf8');
+      console.log(`[VSCODE_FS] Read file ${path}`);
+    } else if (cmd === "createFile") {
+      const uri = vscode.Uri.file(path);
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
+      result = `File ${path} created successfully.`;
+      console.log(`[VSCODE_FS] Created file ${path}`);
+    } else if (cmd === "listFiles") {
+      const uri = vscode.Uri.file(path);
+      const files = await vscode.workspace.fs.readDirectory(uri);
+      result = files.map(([name, type]) => ({
+        name,
+        type: type === vscode.FileType.Directory ? "directory" : "file",
+      }));
+      console.log(`[VSCODE_FS] Listed directory ${path}`);
+    } else {
+      error = `Unknown command: ${cmd}`;
+      console.error(`[VSCODE_FS_ERROR] ${error}`);
+    }
+  } catch (e: any) {
+    error = e.message;
+    console.error(`[VSCODE_FS_ERROR] Error executing command ${cmd}: ${error}`);
+  }
+
+  // Send the result back to the Python process
+  const responsePayload = JSON.stringify({
+    tool_output: result,
+    tool_call_id: tool_call_id,
+    error: error,
+  });
+  pythonProc.stdin.write(responsePayload + "\n");
+  pythonProc.stdin.write("END_OF_TOOL_OUTPUT\n"); // Delimiter
+  console.log(`[TO_PYTHON] Sent tool output for ${cmd}.`);
+}
+
 function getWebviewContent(
   context: vscode.ExtensionContext,
   webview: vscode.Webview
