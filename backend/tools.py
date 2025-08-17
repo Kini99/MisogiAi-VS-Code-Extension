@@ -1,6 +1,7 @@
 from langchain.tools import BaseTool
 from typing import Type
 from pydantic import BaseModel, Field
+from typing import Optional
 import json
 import sys
 import os
@@ -109,6 +110,137 @@ class ListFilesTool(BaseTool):
             return workspace_error
         abs_path = os.path.join(WORKSPACE_ROOT, path)
         command = {"command": "listFiles", "path": abs_path}
+        return send_command_and_wait(command)
+
+
+# ------------------------------
+# REPLACE TEXT TOOL
+# ------------------------------
+class ReplaceTextArgsSchema(BaseModel):
+    filePath: str = Field(description="The path to the file to modify.")
+    startLine: int = Field(description="The starting line number (0-indexed).")
+    startChar: int = Field(description="The starting character number (0-indexed).")
+    endLine: int = Field(description="The ending line number (0-indexed).")
+    endChar: int = Field(description="The ending character number (0-indexed).")
+    newText: str = Field(description="The new text to insert.")
+
+
+class ReplaceTextTool(BaseTool):
+    name: str = "replace_text"
+    description: str = "Replaces text in a specific range within a file."
+    args_schema: Type[BaseModel] = ReplaceTextArgsSchema
+
+    def _run(self, filePath: str, startLine: int, startChar: int, endLine: int, endChar: int, newText: str):
+        workspace_error = check_workspace()
+        if workspace_error:
+            return workspace_error
+        command = {
+            "command": "replaceText",
+            "filePath": os.path.join(WORKSPACE_ROOT, filePath),
+            "startLine": startLine,
+            "startChar": startChar,
+            "endLine": endLine,
+            "endChar": endChar,
+            "newText": newText
+        }
+        return send_command_and_wait(command)
+
+
+# ------------------------------
+# INSERT TEXT TOOL
+# ------------------------------
+class InsertTextArgsSchema(BaseModel):
+    filePath: str = Field(description="The path to the file to modify.")
+    lineNumber: int = Field(description="The line number to insert at (0-indexed).")
+    charNumber: int = Field(description="The character number to insert at (0-indexed).")
+    text: str = Field(description="The text to insert.")
+
+
+class InsertTextTool(BaseTool):
+    name: str = "insert_text"
+    description: str = "Inserts text at a specific position within a file."
+    args_schema: Type[BaseModel] = InsertTextArgsSchema
+
+    def _run(self, filePath: str, lineNumber: int, charNumber: int, text: str):
+        workspace_error = check_workspace()
+        if workspace_error:
+            return workspace_error
+        command = {
+            "command": "insertText",
+            "filePath": os.path.join(WORKSPACE_ROOT, filePath),
+            "lineNumber": lineNumber,
+            "charNumber": charNumber,
+            "text": text
+        }
+        return send_command_and_wait(command)
+
+
+# ------------------------------
+# SEARCH AND REPLACE TOOL
+# ------------------------------
+class SearchAndReplaceArgsSchema(BaseModel):
+    filePath: str = Field(description="The path to the file to modify.")
+    searchRegex: str = Field(description="The regex pattern to search for.")
+    replaceText: str = Field(description="The text to replace matches with.")
+
+
+class SearchAndReplaceTool(BaseTool):
+    name: str = "search_and_replace"
+    description: str = "Performs a regex-based search and replace operation within a file."
+    args_schema: Type[BaseModel] = SearchAndReplaceArgsSchema
+
+    def _run(self, filePath: str, searchRegex: str, replaceText: str):
+        workspace_error = check_workspace()
+        if workspace_error:
+            return workspace_error
+        command = {
+            "command": "searchAndReplace",
+            "filePath": os.path.join(WORKSPACE_ROOT, filePath),
+            "searchRegex": searchRegex,
+            "replaceText": replaceText
+        }
+        return send_command_and_wait(command)
+
+
+# ------------------------------
+# SEMANTIC SEARCH TOOL
+# ------------------------------
+class SemanticSearchArgsSchema(BaseModel):
+    query: str = Field(description="The semantic query for code search.")
+
+
+class SemanticSearchTool(BaseTool):
+    name: str = "semantic_search"
+    description: str = "Performs a semantic code search using VS Code's symbol provider."
+    args_schema: Type[BaseModel] = SemanticSearchArgsSchema
+
+    def _run(self, query: str):
+        workspace_error = check_workspace()
+        if workspace_error:
+            return workspace_error
+        command = {"command": "semanticSearch", "query": query}
+        return send_command_and_wait(command)
+
+
+# ------------------------------
+# REGEX SEARCH TOOL
+# ------------------------------
+class RegexSearchArgsSchema(BaseModel):
+    query: str = Field(description="The regex pattern to search for.")
+    filePath: Optional[str] = Field(default=None, description="Optional: The path to a specific file to search within.")
+
+class RegexSearchTool(BaseTool):
+    name: str = "regex_search"
+    description: str = "Performs a regex-based code search."
+    args_schema: Type[BaseModel] = RegexSearchArgsSchema
+
+    def _run(self, query: str, filePath: str = None):
+        workspace_error = check_workspace()
+        if workspace_error:
+            return workspace_error
+        command = {"command": "regexSearch", "query": query}
+        if filePath:
+            command["filePath"] = os.path.join(WORKSPACE_ROOT, filePath)
         return send_command_and_wait(command)
 
 

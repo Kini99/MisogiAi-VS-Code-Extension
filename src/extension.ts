@@ -80,7 +80,9 @@ export function activate(context: vscode.ExtensionContext) {
       const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
       if (!workspaceRoot) {
-        vscode.window.showErrorMessage("No workspace folder is open. Please open a folder in VS Code first.");
+        vscode.window.showErrorMessage(
+          "No workspace folder is open. Please open a folder in VS Code first."
+        );
         currentPanel?.dispose();
         return;
       }
@@ -93,8 +95,8 @@ export function activate(context: vscode.ExtensionContext) {
         cwd: context.extensionPath, // Set the working directory
         env: {
           ...process.env,
-          VSCODE_WORKSPACE_ROOT: workspaceRoot  // Pass workspace to Python
-        }
+          VSCODE_WORKSPACE_ROOT: workspaceRoot, // Pass workspace to Python
+        },
       });
 
       // --- EVENT LISTENERS TO DIAGNOSE ANY ISSUE ---
@@ -137,10 +139,16 @@ export function activate(context: vscode.ExtensionContext) {
               // Handle tool calls from the AI model
               // The Python agent will send these back after processing the tool_node
               // We don't need to do anything here as the tool_node in Python handles it.
-              console.log("[FROM_PYTHON_STDOUT] AI wants to call a tool:", aiMessage.tool_calls);
+              console.log(
+                "[FROM_PYTHON_STDOUT] AI wants to call a tool:",
+                aiMessage.tool_calls
+              );
             } else if (aiMessage && aiMessage.tool_output) {
               // Handle tool output from the AI model (after tool execution)
-              console.log("[FROM_PYTHON_STDOUT] AI tool output:", aiMessage.tool_output);
+              console.log(
+                "[FROM_PYTHON_STDOUT] AI tool output:",
+                aiMessage.tool_output
+              );
               currentPanel?.webview.postMessage({
                 command: "addMessage",
                 role: "assistant",
@@ -216,6 +224,154 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(startCommand, setApiKeyCommand);
 }
 
+async function handleReplaceText(response: any) {
+  const { filePath, startLine, startChar, endLine, endChar, newText } =
+    response;
+  const uri = vscode.Uri.file(filePath);
+  const document = await vscode.workspace.openTextDocument(uri);
+  const editor = await vscode.window.showTextDocument(document);
+
+  const range = new vscode.Range(
+    new vscode.Position(startLine, startChar),
+    new vscode.Position(endLine, endChar)
+  );
+
+  editor
+    .edit((editBuilder) => {
+      editBuilder.replace(range, newText);
+    })
+    .then((success) => {
+      if (success) {
+        console.log(`[REPLACE_TEXT] Successfully replaced text in ${filePath}`);
+        return `Replaced text in ${filePath}`;
+      } else {
+        console.error(`[REPLACE_TEXT] Failed to replace text in ${filePath}`);
+        return `Failed to replace text in ${filePath}`;
+      }
+    });
+}
+
+async function handleInsertText(response: any) {
+  const { filePath, lineNumber, charNumber, text } = response;
+  const uri = vscode.Uri.file(filePath);
+  const document = await vscode.workspace.openTextDocument(uri);
+  const editor = await vscode.window.showTextDocument(document);
+
+  const position = new vscode.Position(lineNumber, charNumber);
+
+  editor
+    .edit((editBuilder) => {
+      editBuilder.insert(position, text);
+    })
+    .then((success) => {
+      if (success) {
+        console.log(`[INSERT_TEXT] Successfully inserted text in ${filePath}`);
+        return `Successfully inserted text in ${filePath}`
+      } else {
+        console.error(`[INSERT_TEXT] Failed to insert text in ${filePath}`);
+        return `Failed to insert text in ${filePath}`
+      }
+    });
+}
+
+async function handleSearchAndReplace(response: any) {
+  const { filePath, searchRegex, replaceText } = response;
+  const uri = vscode.Uri.file(filePath);
+  const document = await vscode.workspace.openTextDocument(uri);
+  const editor = await vscode.window.showTextDocument(document);
+
+  const text = document.getText();
+  const regex = new RegExp(searchRegex, "g");
+  const newText = text.replace(regex, replaceText);
+
+  editor
+    .edit((editBuilder) => {
+      const fullRange = new vscode.Range(
+        document.positionAt(0),
+        document.positionAt(text.length)
+      );
+      editBuilder.replace(fullRange, newText);
+    })
+    .then((success) => {
+      if (success) {
+        console.log(
+          `[SEARCH_REPLACE] Successfully performed search and replace in ${filePath}`
+        );
+        return `Successfully performed search and replace in ${filePath}`
+      } else {
+        console.error(
+          `[SEARCH_REPLACE] Failed to perform search and replace in ${filePath}`
+        );
+        return `Failed to perform search and replace in ${filePath}`
+      }
+    });
+}
+
+async function handleSemanticSearch(response: any) {
+  const { query } = response;
+  try {
+    const symbols = await vscode.commands.executeCommand<any[]>(
+      "vscode.executeWorkspaceSymbolProvider",
+      query
+    );
+    const results = (symbols ?? []).slice(0, 200).map((s: any) => ({
+      name: s.name,
+      kind: vscode.SymbolKind[s.kind] ?? s.kind,
+      location: s.location?.uri?.fsPath,
+      range: s.location?.range,
+      containerName: s.containerName ?? undefined,
+    }));
+    console.log(
+      `[SEMANTIC_SEARCH] Found ${results.length} symbols for query "${query}"`
+    );
+    return results;
+  } catch (err) {
+    vscode.window.showErrorMessage(`Semantic search failed: ${err}`);
+    console.error("[SEMANTIC_SEARCH] Error:", err);
+    return [];
+  }
+}
+
+async function handleRegexSearch(response: any) {
+  const { query, filePath } = response;
+  try {
+    const files = filePath
+      ? [vscode.Uri.file(filePath)]
+      : await vscode.workspace.findFiles(
+          "**/*",
+          "**/{node_modules,.git,.next,dist,build}/**",
+          5000
+        );
+
+    const re = new RegExp(query, "g");
+    const hits: Array<{ file: string; line: number; match: string }> = [];
+
+    for (const f of files) {
+      try {
+        const doc = await vscode.workspace.openTextDocument(f);
+        const lines = doc.getText().split(/\r?\n/);
+        lines.forEach((ln, i) => {
+          re.lastIndex = 0;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(ln))) {
+            hits.push({ file: f.fsPath, line: i + 1, match: m[0] });
+          }
+        });
+      } catch {
+        // ignore unreadable files
+      }
+    }
+    console.log(
+      `[REGEX_SEARCH] Found ${hits.length} matches for query "${query}"`
+    );
+    return hits;
+  } catch (err) {
+    vscode.window.showErrorMessage(`Regex search failed: ${err}`);
+    console.error("[REGEX_SEARCH] Error:", err);
+    return [];
+  }
+}
+
 async function handlePythonCommand(
   command: any,
   panel: vscode.WebviewPanel | undefined,
@@ -234,11 +390,11 @@ async function handlePythonCommand(
     if (cmd === "readFile") {
       const uri = vscode.Uri.file(path);
       const fileContent = await vscode.workspace.fs.readFile(uri);
-      result = Buffer.from(fileContent).toString('utf8');
+      result = Buffer.from(fileContent).toString("utf8");
       console.log(`[VSCODE_FS] Read file ${path}`);
     } else if (cmd === "createFile") {
       const uri = vscode.Uri.file(path);
-      await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf8"));
       result = `File ${path} created successfully.`;
       console.log(`[VSCODE_FS] Created file ${path}`);
     } else if (cmd === "listFiles") {
@@ -249,6 +405,16 @@ async function handlePythonCommand(
         type: type === vscode.FileType.Directory ? "directory" : "file",
       }));
       console.log(`[VSCODE_FS] Listed directory ${path}`);
+    } else if (cmd === "replaceText") {
+      handleReplaceText(command);
+    } else if (cmd === "insertText") {
+      handleInsertText(command);
+    } else if (cmd === "searchAndReplace") {
+      handleSearchAndReplace(command);
+    } else if (cmd === "semanticSearch") {
+      handleSemanticSearch(command);
+    } else if (cmd === "regexSearch") {
+      handleRegexSearch(command);
     } else {
       error = `Unknown command: ${cmd}`;
       console.error(`[VSCODE_FS_ERROR] ${error}`);
